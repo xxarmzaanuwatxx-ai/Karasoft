@@ -118,13 +118,19 @@ MainComponent::MainComponent()
     applyStyleFromSettings();
 
     auto savedDevice = settings.props().getXmlValue ("audioDevice");
-    deviceManager.initialise (0, 2, savedDevice.get(), true);
+    const auto deviceError = deviceManager.initialise (0, 2, savedDevice.get(), true);
+    juce::Logger::writeToLog ("Audio device: " + (deviceError.isEmpty() && deviceManager.getCurrentAudioDevice() != nullptr
+                                                     ? deviceManager.getCurrentAudioDevice()->getName()
+                                                     : "none " + deviceError));
     player.setSource (&engine);
     deviceManager.addAudioCallback (&player);
 
     juce::String fluidError;
     if (! fluid::api().load (fluidError))
+    {
         statusText = fluidError;
+        juce::Logger::writeToLog (fluidError);
+    }
     else if (settings.getSoundFonts().isEmpty())
         statusText = th ("คลิกขวา > SoundFont > เพิ่ม SoundFont เพื่อเริ่มใช้งาน");
     else
@@ -188,6 +194,7 @@ void MainComponent::applySoundFonts()
         const auto level = settings.props().getIntValue ("reverb", 40);
         engine.setReverb (0.4 + level / 250.0, level / 100.0);
         statusText = error;
+        juce::Logger::writeToLog ("SoundFonts loaded " + error);
         updateStatus();
     });
 }

@@ -41,6 +41,16 @@ jobs:
           Get-ChildItem deps/fluidsynth/bin/*.dll | Copy-Item -Destination dist/
           Copy-Item README.md dist/
 
+      - name: Smoke test (app starts and stays running)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/KaraSoft.exe -PassThru
+          Start-Sleep -Seconds 15
+          $log = Join-Path $env:APPDATA "KaraSoft/KaraSoft.log"
+          if (Test-Path $log) { Get-Content $log }
+          if ($p.HasExited) { Write-Error "KaraSoft exited early with code $($p.ExitCode)"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+
       - name: Build installer
         shell: pwsh
         run: |

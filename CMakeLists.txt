@@ -4,6 +4,9 @@ project(KaraSoft VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Link the MSVC runtime statically so the app runs without the Visual C++ Redistributable.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 # JUCE: use a local checkout if JUCE_DIR is given, otherwise fetch it.
 set(JUCE_DIR "" CACHE PATH "Path to a JUCE checkout")
 if(JUCE_DIR)

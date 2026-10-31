@@ -6,10 +6,16 @@ class KaraSoftApplication : public juce::JUCEApplication
 public:
     const juce::String getApplicationName() override    { return JUCE_APPLICATION_NAME_STRING; }
     const juce::String getApplicationVersion() override { return JUCE_APPLICATION_VERSION_STRING; }
-    bool moreThanOneInstanceAllowed() override          { return false; }
+    bool moreThanOneInstanceAllowed() override          { return true; }
 
     void initialise (const juce::String& commandLine) override
     {
+        logger.reset (juce::FileLogger::createDefaultAppLogger ("KaraSoft", "KaraSoft.log", "KaraSoft "
+                                                                + getApplicationVersion()));
+        juce::Logger::setCurrentLogger (logger.get());
+        juce::SystemStats::setApplicationCrashHandler (writeCrashLog);
+        juce::Logger::writeToLog ("Starting on " + juce::SystemStats::getOperatingSystemName());
+
        #if JUCE_WINDOWS
         // Tahoma covers Thai and Latin, so menus and labels render consistently.
         juce::LookAndFeel::getDefaultLookAndFeel().setDefaultSansSerifTypefaceName ("Tahoma");
@@ -18,7 +24,12 @@ public:
         openFromCommandLine (commandLine);
     }
 
-    void shutdown() override { mainWindow = nullptr; }
+    void shutdown() override
+    {
+        mainWindow = nullptr;
+        juce::Logger::writeToLog ("Shut down");
+        juce::Logger::setCurrentLogger (nullptr);
+    }
     void systemRequestedQuit() override { quit(); }
 
     void anotherInstanceStarted (const juce::String& commandLine) override
@@ -27,6 +38,11 @@ public:
     }
 
 private:
+    static void writeCrashLog (void*)
+    {
+        juce::Logger::writeToLog ("CRASH\n" + juce::SystemStats::getStackBacktrace());
+    }
+
     void openFromCommandLine (const juce::String& commandLine)
     {
         juce::Array<juce::File> files;
@@ -74,6 +90,7 @@ private:
         }
     };
 
+    std::unique_ptr<juce::FileLogger> logger;
     std::unique_ptr<MainWindow> mainWindow;
 };
 
