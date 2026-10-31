@@ -24,7 +24,7 @@ jobs:
           Expand-Archive fluidsynth.zip -DestinationPath deps/fluidsynth
 
       - name: Configure
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -S . -B build -A x64
 
       - name: Build
         run: cmake --build build --config Release --target KaraSoft karaparse
