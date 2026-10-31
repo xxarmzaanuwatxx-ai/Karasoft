@@ -1,0 +1,75 @@
+name: Build Windows installer
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FLUIDSYNTH_VERSION: 2.4.4
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download FluidSynth
+        shell: pwsh
+        run: |
+          $v = "${{ env.FLUIDSYNTH_VERSION }}"
+          Invoke-WebRequest "https://github.com/FluidSynth/fluidsynth/releases/download/v$v/fluidsynth-$v-win10-x64.zip" -OutFile fluidsynth.zip
+          Expand-Archive fluidsynth.zip -DestinationPath deps/fluidsynth
+
+      - name: Configure
+        run: cmake -S . -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --target KaraSoft karaparse
+
+      - name: Check sample-free parser builds
+        shell: pwsh
+        run: Test-Path build/karaparse_artefacts/Release/karaparse.exe
+
+      - name: Stage files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/KaraSoft_artefacts/Release/KaraSoft.exe dist/
+          Get-ChildItem deps/fluidsynth/bin/*.dll | Copy-Item -Destination dist/
+          Copy-Item README.md dist/
+
+      - name: Smoke test (app starts and stays running)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/KaraSoft.exe -PassThru
+          Start-Sleep -Seconds 15
+          $log = Join-Path $env:APPDATA "KaraSoft/KaraSoft.log"
+          if (Test-Path $log) { Get-Content $log }
+          if ($p.HasExited) { Write-Error "KaraSoft exited early with code $($p.ExitCode)"; exit 1 }
+          Stop-Process -Id $p.Id -Force
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc /DAppVersion=0.1.0 installer/karasoft.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KaraSoft-Setup
+          path: installer/Output/*.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KaraSoft-Portable
+          path: dist/
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/Output/*.exe
